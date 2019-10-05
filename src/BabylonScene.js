@@ -5,6 +5,7 @@ I have created a minimal example with React+ Babylon:
 import React, { Component } from "react";
 import * as BABYLON from "babylonjs";
 import 'babylonjs-loaders';
+
 let scene;
 
 /**
@@ -46,14 +47,14 @@ class BabylonScene extends Component  {
 
     //Animation
     scene.registerBeforeRender(() => {
-      //console.log(scene.getCameraByName('FreeCamera').position)
+      
     });
   };
 
   componentWillUnmount() {
     window.removeEventListener("resize", this.onWindowResize, false);
   }
-  
+
   onWindowResize = event => {
     this.engine.resize();
   };
@@ -71,9 +72,16 @@ class BabylonScene extends Component  {
     );
   };
   addScene = () =>{
-    BABYLON.SceneLoader.Append("", "doan14.glb", scene, function (scene) {
+    BABYLON.SceneLoader.Append("", "duy22.glb", scene, function (scene) {
       // Create a default arc rotate camera and light.
-        console.log(scene.meshes);  
+        let allmesh= scene.meshes;
+        allmesh.map(mesh =>{
+          console.log(mesh.name);
+          if (mesh.name.search("bed")!=-1  ){
+          console.log("Day la "+mesh.name);
+            mesh.checkCollisions=true;
+          }
+        });
       
                   
       });
@@ -106,12 +114,12 @@ class BabylonScene extends Component  {
     else{
      camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0, 1, -20), scene);
      camera.rotation.y=3.14;
-      camera.position =new BABYLON.Vector3(-19, 2, 4);
+      camera.position =new BABYLON.Vector3(-9,2,-1);
       camera.attachControl(this.canvas, true);    
-      camera.speed=0.4;
+      camera.speed=1.5;
       camera.applyGravity = true;
-      camera.ellipsoid= new BABYLON.Vector3(2,3,2)
-    
+      camera.ellipsoid= new BABYLON.Vector3(15,30,15)
+      camera.ellipsoidOffset = new BABYLON.Vector3(15, 7, 15);
       camera.checkCollisions=true;
     }
     
@@ -133,7 +141,7 @@ class BabylonScene extends Component  {
       scene
     );
     ground.material = groundMaterial;
-    ground.position.y=-4;
+    ground.position.y=-23;
     ground.checkCollisions = true;
     //Add SkyBox
     let skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:1000.0}, scene);
