@@ -62,7 +62,7 @@ class BabylonScene extends Component  {
   /**
    * Add Lights
    */
-  addLight = () => {
+  addLight = (x=0,y=10,z=0) => {
     //---------- LIGHT---------------------
     // Create a basic light, aiming 0,1,0 - meaning, to the sky.
     let light = new BABYLON.HemisphericLight(
@@ -72,18 +72,19 @@ class BabylonScene extends Component  {
     );
   };
   addScene = () =>{
-    BABYLON.SceneLoader.Append("", "duy22.glb", scene, function (scene) {
-      // Create a default arc rotate camera and light.
+    BABYLON.SceneLoader.Append("Typeroom/", "PhongBep.glb", scene, function (scene) {
+      // Create a default arc rotate camera and light.  
         let allmesh= scene.meshes;
         allmesh.map(mesh =>{
           console.log(mesh.name);
-          if (mesh.name.search("bed")!=-1  ){
-          console.log("Day la "+mesh.name);
-            mesh.checkCollisions=true;
-          }
-        });
-      
-                  
+          mesh.checkCollisions=true;
+           if (mesh.name.search("kinh")!=-1  ){
+            //this.addGlass(mesh);
+           
+           
+            
+           }
+        });                   
       });
   }
   /**
@@ -92,8 +93,8 @@ class BabylonScene extends Component  {
    * type : 2 = ArcRotateCamera
    */
   addCamera = (type=1) => {
-    let camera
-    if(type==="1"){
+    let camera;
+    if(type=="1"){
       // ---------------ArcRotateCamera or Orbit Control----------
        camera = new BABYLON.ArcRotateCamera(
         "Camera",
@@ -114,12 +115,12 @@ class BabylonScene extends Component  {
     else{
      camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0, 1, -20), scene);
      camera.rotation.y=3.14;
-      camera.position =new BABYLON.Vector3(-9,2,-1);
+      camera.position =new BABYLON.Vector3(-9,18,-1);
       camera.attachControl(this.canvas, true);    
       camera.speed=1.5;
       camera.applyGravity = true;
-      camera.ellipsoid= new BABYLON.Vector3(15,30,15)
-      camera.ellipsoidOffset = new BABYLON.Vector3(15, 7, 15);
+       camera.ellipsoid= new BABYLON.Vector3(8,18,8)
+      // camera.ellipsoidOffset = new BABYLON.Vector3(15, 13, 15);
       camera.checkCollisions=true;
     }
     
@@ -137,17 +138,17 @@ class BabylonScene extends Component  {
     );
     let groundMaterial = new BABYLON.StandardMaterial("grass0", scene);
     groundMaterial.diffuseTexture = new BABYLON.Texture(
-      "textures/glass.jpg",
+      "Typeroom/textures/glass.jpg",
       scene
     );
     ground.material = groundMaterial;
-    ground.position.y=-23;
+    ground.position.y=-1;
     ground.checkCollisions = true;
     //Add SkyBox
     let skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:1000.0}, scene);
     let skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
     skyboxMaterial.backFaceCulling = false;
-    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/skybox", scene);
+    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("Typeroom/textures/skybox", scene);
     skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
     skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
@@ -158,7 +159,18 @@ class BabylonScene extends Component  {
    * Add Models
    */
   addModels = () => {
-    
+
+  };
+  addGlass = () =>{
+    // console.log("Duy ne");
+    // let material = new BABYLON.StandardMaterial("glass", scene);
+    // material.diffuseColor = new BABYLON.Color3(0, 0, 0);
+    // material.reflectionTexture = new BABYLON.CubeTexture("textures/skybox", scene);
+    // material.reflectionTexture.level = 1;
+    // material.specularPower = 150;
+    // material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    // material.alpha = 0.1;
+    // return material;
   };
   render() {
     return (
@@ -167,7 +179,7 @@ class BabylonScene extends Component  {
         ref={canvas => {
           this.canvas = canvas;
           
-        }}
+        }}  
       />
     );
   }
