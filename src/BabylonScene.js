@@ -72,7 +72,7 @@ class BabylonScene extends Component  {
     );
   };
   addScene = () =>{
-    BABYLON.SceneLoader.Append("Typeroom/", "PhongBep.glb", scene, function (scene) {
+    BABYLON.SceneLoader.Append("Typeroom/", "PhongNgu .glb", scene, function (scene) {
       // Create a default arc rotate camera and light.  
         let allmesh= scene.meshes;
         allmesh.map(mesh =>{
