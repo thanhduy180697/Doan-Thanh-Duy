@@ -1,0 +1,14 @@
+#content {
+    width: calc(100% - 164px);
+    background-color: #FFF;
+    border-radius: 0;
+    border: 1px solid #d6d9dc;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 1px;
+    border-right-width: 0;
+    padding: 24px;
+    margin-left: 164px;
+    min-height: 640px;
+    margin-top: 50px;
+}

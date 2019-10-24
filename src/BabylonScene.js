@@ -14,7 +14,7 @@ let scene;
 class BabylonScene extends Component  {
   constructor(props) {
     super(props);
-    this.state = { useWireFrame: false, shouldAnimate: false };
+    this.state = { useWireFrame: false, shouldAnimate: false ,type :"PhongNgu"};
   }
   componentDidMount = () => {
     // start ENGINE
@@ -72,7 +72,8 @@ class BabylonScene extends Component  {
     );
   };
   addScene = () =>{
-    BABYLON.SceneLoader.Append("Typeroom/", "PhongNgu .glb", scene, function (scene) {
+    let {type} = this.state;
+    BABYLON.SceneLoader.Append("Typeroom/", type+".glb", scene, (scene) => {
       // Create a default arc rotate camera and light.  
         let allmesh= scene.meshes;
         allmesh.map(mesh =>{
@@ -172,15 +173,39 @@ class BabylonScene extends Component  {
     // material.alpha = 0.1;
     // return material;
   };
+  save = async () => {
+    // const axios = require('axios').default;
+    // window.event.preventDefault()
+    // let username=document.getElementById("username").value;
+    // let password=document.getElementById("password").value;
+    // let params = {
+    //     username: username,
+    //     password: password,
+    // }
+    // fetch('http://localhost:80/test_database/api/test-react-js.php', {
+    //     method: "POST",
+    //     headers: {
+    //         "Accept": "Application/json",
+           
+    //     },
+    //     body: JSON.stringify(params)
+    // })
+    // .then( res => {
+    //     console.log(res)
+    // })
+  }
   render() {
     return (
+      <>
       <canvas
         style={{ width: window.innerWidth*0.70, height: window.innerHeight }}
         ref={canvas => {
           this.canvas = canvas;
           
-        }}  
+        }}
       />
+      <input type="submit" id="btn-submit" value="Submit" onClick={this.save}></input>
+      </>
     );
   }
 }
