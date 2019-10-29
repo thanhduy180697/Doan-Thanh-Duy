@@ -5,8 +5,9 @@ I have created a minimal example with React+ Babylon:
 import React, { Component } from "react";
 import * as BABYLON from "babylonjs";
 import 'babylonjs-loaders';
+import 'babylonjs-serializers';
 
-let scene;
+
 
 /**
  * Example temnplate of using Babylon JS with React
@@ -20,10 +21,10 @@ class BabylonScene extends Component  {
     // start ENGINE
     this.engine = new BABYLON.Engine(this.canvas, true);
 
-    //Create Scene
-    scene = new BABYLON.Scene(this.engine);
-    scene.collisionsEnabled = true;
-    //--Scene--
+    //Create this.scene
+    this.scene = new BABYLON.Scene(this.engine);
+    this.scene.collisionsEnabled = true;
+    //--this.scene--
     this.addScene()
     //--Light---
     this.addLight();
@@ -42,11 +43,11 @@ class BabylonScene extends Component  {
 
     // Render Loop
     this.engine.runRenderLoop(() => {
-      scene.render();
+      this.scene.render();
     });
 
     //Animation
-    scene.registerBeforeRender(() => {
+    this.scene.registerBeforeRender(() => {
       
     });
   };
@@ -68,25 +69,27 @@ class BabylonScene extends Component  {
     let light = new BABYLON.HemisphericLight(
       "light1",
       new BABYLON.Vector3(0, 10, 0),
-      scene
+      this.scene
     );
   };
   addScene = () =>{
     let {type} = this.state;
-    BABYLON.SceneLoader.Append("Typeroom/", type+".glb", scene, (scene) => {
+    BABYLON.SceneLoader.Append("Typeroom/", type+".glb", this.scene, (scene) => {
       // Create a default arc rotate camera and light.  
         let allmesh= scene.meshes;
         allmesh.map(mesh =>{
-          console.log(mesh.name);
           mesh.checkCollisions=true;
            if (mesh.name.search("kinh")!=-1  ){
             //this.addGlass(mesh);
-           
-           
-            
            }
         });                   
       });
+  }
+  save=()=>{
+    
+    let serializedScene = BABYLON.SceneSerializer.Serialize(this.scene);
+    //let strScene = JSON.stringify(serializedScene);
+    console.log(strScene);
   }
   /**
    * Add Camera 
@@ -103,7 +106,7 @@ class BabylonScene extends Component  {
         Math.PI / 4,
         4,
         BABYLON.Vector3.Zero(),
-        scene
+        this.scene
       );
       camera.inertia = 0;
       camera.angularSensibilityX = 250;
@@ -114,7 +117,7 @@ class BabylonScene extends Component  {
       camera.setPosition(new BABYLON.Vector3(5, 5, 5));
     }
     else{
-     camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0, 1, -20), scene);
+     camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0, 1, -20), this.scene);
      camera.rotation.y=3.14;
       camera.position =new BABYLON.Vector3(-9,18,-1);
       camera.attachControl(this.canvas, true);    
@@ -135,21 +138,21 @@ class BabylonScene extends Component  {
     let ground = BABYLON.MeshBuilder.CreateGround(
       "ground1",
       { height: 900, width: 900, subdivisions: 2 },
-      scene
+      this.scene
     );
-    let groundMaterial = new BABYLON.StandardMaterial("grass0", scene);
+    let groundMaterial = new BABYLON.StandardMaterial("grass0", this.scene);
     groundMaterial.diffuseTexture = new BABYLON.Texture(
       "Typeroom/textures/glass.jpg",
-      scene
+      this.scene
     );
     ground.material = groundMaterial;
     ground.position.y=-1;
     ground.checkCollisions = true;
     //Add SkyBox
-    let skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:1000.0}, scene);
-    let skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+    let skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:1000.0}, this.scene);
+    let skyboxMaterial = new BABYLON.StandardMaterial("skyBox", this.scene);
     skyboxMaterial.backFaceCulling = false;
-    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("Typeroom/textures/skybox", scene);
+    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("Typeroom/textures/skybox", this.scene);
     skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
     skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
@@ -164,36 +167,19 @@ class BabylonScene extends Component  {
   };
   addGlass = () =>{
     // console.log("Duy ne");
-    // let material = new BABYLON.StandardMaterial("glass", scene);
+    // let material = new BABYLON.StandardMaterial("glass", this.scene);
     // material.diffuseColor = new BABYLON.Color3(0, 0, 0);
-    // material.reflectionTexture = new BABYLON.CubeTexture("textures/skybox", scene);
+    // material.reflectionTexture = new BABYLON.CubeTexture("textures/skybox", this.scene);
     // material.reflectionTexture.level = 1;
     // material.specularPower = 150;
     // material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.05);
     // material.alpha = 0.1;
     // return material;
   };
-  save = async () => {
-    // const axios = require('axios').default;
-    // window.event.preventDefault()
-    // let username=document.getElementById("username").value;
-    // let password=document.getElementById("password").value;
-    // let params = {
-    //     username: username,
-    //     password: password,
-    // }
-    // fetch('http://localhost:80/test_database/api/test-react-js.php', {
-    //     method: "POST",
-    //     headers: {
-    //         "Accept": "Application/json",
-           
-    //     },
-    //     body: JSON.stringify(params)
-    // })
-    // .then( res => {
-    //     console.log(res)
-    // })
-  }
+ 
+  doDownload=(filename, scene)=> {
+       
+  } 
   render() {
     return (
       <>
