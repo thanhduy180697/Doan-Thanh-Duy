@@ -55,7 +55,7 @@ class BabylonScene extends Component  {
   addScene = async () =>{
     let {type} = this.state;
     this.assetsManager = new BABYLON.AssetsManager(this.scene);
-    let meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "PhongNgu2.glb");
+    let meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "PhongNgu5.glb");
     this.assetsManager.load();
     this.assetsManager.useDefaultLoadingScreen = false;
     let i;
@@ -93,7 +93,7 @@ class BabylonScene extends Component  {
           e.preventDefault();
       }
   }, false);
-
+    
     // Render Loop
     this.engine.runRenderLoop(() => {
       this.scene.render();
@@ -101,7 +101,6 @@ class BabylonScene extends Component  {
 
     //Animation
     this.scene.registerBeforeRender(() => {
-      
     });
   }
   save=()=>{   
@@ -193,7 +192,10 @@ class BabylonScene extends Component  {
     let that=this;
     let activeClick;
     let click_old_mesh;
+    this.wallMesh=[];
+    this.meshSpecial=[];
     let clickMesh=(mesh,active=true)=>{
+      console.log(mesh.name);
       mesh.actionManager = new BABYLON.ActionManager(that.scene);
       activeClick=false;
       let activepanel= mesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickUpTrigger, function () {
@@ -207,9 +209,15 @@ class BabylonScene extends Component  {
       }))
     }
     this.importMesh.map((mesh)=>{
+
         mesh.checkCollisions=true;
-        if(mesh.name==="wall") this.meshWall=mesh;
-        if(mesh.name!=="wall" && mesh.name!=="roof" && mesh.name!=="nen" && mesh.name!=="glassWindow" && mesh.parent!==null){
+        if(mesh.name.search("wall")===0){
+          this.wallMesh.push(mesh)
+        }
+        if(mesh.name==="fireAlarm" || mesh.name==="roofLight"|| mesh.name==="camera" || mesh.name==="waterCannon"){
+          this.meshSpecial.push(mesh);
+        }
+        if(mesh.name.search("wall")===-1 && mesh.name!=="roof" && mesh.name!=="nen" && mesh.name!=="glassWindow" && mesh.parent!==null){
           if(mesh.name==="__root__"){
             mesh.id="room";
             mesh.name="room";
@@ -348,9 +356,9 @@ class BabylonScene extends Component  {
     //    InformationPanel.zIndex = zGUIIndex = zGUIIndex+1;
     }
     let old_active_mesh;
+    that.meshCurrentPosition=null;
     let ActiveNormalPanel=(mesh,active)=>{
         if(active){
-            //console.log(that.NormalPanel)
             if(that.SavePanel)that.UIRoot.removeControl(that.SavePanel);
             if(old_active_mesh!==mesh && that.NormalPanel){
               that.UIRoot.removeControl(that.NormalPanel);
@@ -366,7 +374,10 @@ class BabylonScene extends Component  {
         else {
             if(old_active_mesh===mesh) that.UIRoot.addControl(that.GeneralPanelButton)    
             if(that.NormalPanel){
-              if(that.SavePanel) that.UIRoot.removeControl(that.GeneralPanelButton);
+              that.meshCurrentPosition=mesh.position;
+              if(that.SavePanel) {
+                that.UIRoot.removeControl(that.GeneralPanelButton);
+              }
                 else returnNormal();
             }
         }
@@ -398,10 +409,17 @@ class BabylonScene extends Component  {
               cancelButton.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
               cancelButton.top="40px";
               saveButton.onPointerUpObservable.add(function() { 
-                  move(mesh,false);
+                let coilision=true;
+                that.meshSpecial.map(diffMesh=>{
+                  if(mesh.intersectsMesh(diffMesh,true)) {
+                    coilision=false;
+                    alert("Khong Save duoc")
+                  }
+                })
+                if(coilision) move(mesh,false);
               });
               cancelButton.onPointerUpObservable.add(function(e) { 
-                  move(mesh,false);              
+                 move(mesh,false,true);           
               });
               SavePanel.addControl(saveButton);
               SavePanel.addControl(cancelButton);
@@ -416,9 +434,7 @@ class BabylonScene extends Component  {
     }
     let coilision=(mesh,meshMaterial,PushOut=false)=>{
       let diffmesh=that.canMesh;
-      console.log(that.meshWall);
-     diffmesh.push(that.meshWall);
-      
+      this.wallMesh.map(mesh=>diffmesh.push(mesh));
       let mesh_clone=that.scene.getMeshByName(mesh.name + '_clone');  
       let inter=false;                                       
       diffmesh.map(diff =>{
@@ -432,8 +448,11 @@ class BabylonScene extends Component  {
               }
               if(inter===false){
                   if(PushOut){
+                      if(mesh.position.z <=-76 || mesh.position.z >= 72 ||mesh.position.x <=-81 || mesh.position.x >= 83)mesh.position=mesh_clone.position
+                      else{
                       mesh.position.x=Math.round(mesh.position.x)
                       mesh.position.z=Math.round(mesh.position.z)
+                      }
                   }
                   meshMaterial.diffuseColor=new BABYLON.Color3(0,0,1);
               } 
@@ -443,11 +462,13 @@ class BabylonScene extends Component  {
     }
     let LocationMesh;
     let move_mesh_name;
-    let move=(mesh,active=true)=>{
+    let move=(mesh,active=true,cancel=false)=>{
         if(active){
             that.gizmoManager = new BABYLON.GizmoManager(that.scene);
+            that.duy=that.meshCurrentPosition;
             that.camera.lockedTarget= null
             move_mesh_name=mesh.name;
+            let originMaterial=mesh.material;
             that.UIRoot.removeControl(that.GeneralPanelButton)
             if(that.AddPanel)that.UIRoot.removeControl(that.AddPanel);
             if(that.NormalPanel)ActiveNormalPanel(mesh,false);
@@ -456,8 +477,9 @@ class BabylonScene extends Component  {
                 value.isPickable=false
             }); //Off event all picker
             that.gizmoManager.positionGizmoEnabled = true;
+           
             that.gizmoManager.attachToMesh(mesh);
-            that.gizmoManager.gizmos.positionGizmo.updateGizmoPositionToMatchAttachedMesh=false;
+          
             that.gizmoManager.snapDistance = .001;
             //Show x, y ,z
             LocationMesh = createInput("X :"+mesh.position.x+" Z :"+mesh.position.z,0.3,.05);
@@ -469,16 +491,17 @@ class BabylonScene extends Component  {
                 meshMaterial.alpha=0.7;
             
             if(mesh.name!=="closet"){
-              that.gizmoManager.gizmos.positionGizmo.zGizmo.dispose()
-              that.gizmoManager.gizmos.positionGizmo.yGizmo.dragBehavior.onDragObservable.add((e)=>{
+              that.gizmoManager.gizmos.positionGizmo.yGizmo.dispose()
+              that.gizmoManager.gizmos.positionGizmo.zGizmo.dragBehavior.onDragObservable.add((e)=>{
+               
                 if(mesh.name===move_mesh_name){              
                   coilision(mesh,meshMaterial)
                 }
               })
             }
             else {
-              that.gizmoManager.gizmos.positionGizmo.yGizmo.dispose()
-              that.gizmoManager.gizmos.positionGizmo.zGizmo.dragBehavior.onDragObservable.add((e)=>{
+              that.gizmoManager.gizmos.positionGizmo.zGizmo.dispose()
+              that.gizmoManager.gizmos.positionGizmo.yGizmo.dragBehavior.onDragObservable.add((e)=>{
                 if(mesh.name===move_mesh_name){
                   coilision(mesh,meshMaterial)
                 }
@@ -493,15 +516,18 @@ class BabylonScene extends Component  {
               }
             })
             that.gizmoManager.gizmos.positionGizmo.onDragEndObservable.add(()=>{ 
+                that.duy=that.meshCurrentPosition  
                 let mesh_clone=that.scene.getMeshByName(mesh.name + '_clone');
                 coilision(mesh,meshMaterial,true);
                 LocationMesh.text="X :"+mesh.position.x+" Z :"+mesh.position.z;
-                if(mesh_clone.material)mesh.material=mesh_clone.material
+                if(mesh_clone.material)mesh.material=originMaterial;
                 if(mesh_clone.isEnabled())deleteMesh(mesh_clone);              
             })
         }
-        else{  
-          that.camera.lockedTarget= mesh
+        else{ 
+          console.log(that.duy)
+          if(cancel)mesh.position=that.duy; 
+            that.camera.lockedTarget= mesh
             if(LocationMesh)that.UIRoot.removeControl(LocationMesh);
             if(that.SavePanel)that.UIRoot.removeControl(that.SavePanel);
             that.SavePanel=null
@@ -535,8 +561,9 @@ class BabylonScene extends Component  {
         createAddPanel(true);
         that.UIRoot.removeControl(GeneralPanel);
         insertButton(createContainerButton(0.7,0.10,"Camera"),"camera")
-        insertButton(createContainerButton(0.7,0.10,"Fire alram"),"fire_alarm")
-        insertButton(createContainerButton(0.7,0.10,"Light"),"light")
+        insertButton(createContainerButton(0.7,0.10,"Fire alram"),"fireAlarm")
+        insertButton(createContainerButton(0.7,0.10,"Roof Light"),"roofLight")
+        insertButton(createContainerButton(0.7,0.10,"Water Cannon"),"waterCannon")
       });
       Addcontainer.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
       Addcontainer.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
@@ -544,7 +571,7 @@ class BabylonScene extends Component  {
      return GeneralPanel;
     }
     let countContainerAddPanel=1;
-    let maxContainerAddPanel=4;
+    let maxContainerAddPanel=5;
     let insertButton=(buttonContainer,name)=>{
         buttonContainer.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
         buttonContainer.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
@@ -577,49 +604,56 @@ class BabylonScene extends Component  {
     }
     let increment=1;
     let addMesh=async(type)=>{
-        let meshTask;
-        switch(type){
-          case 'camera':meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "camera1.glb");break;
-          case 'fire_alarm':meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "camera1.glb");break;
-          case 'light':meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "camera1.glb");break;
-          default : console.log("Khong ho tro");
-        }
-        await this.assetsManager.load();
-        this.assetsManager.useDefaultLoadingScreen = false;
-        meshTask.onSuccess = (task) => {
-          task.loadedMeshes.map(loadMesh=>{
-            if(loadMesh.parent!==null){
-              console.log(loadMesh.parent.name)
-              if(loadMesh.parent.name==="__root__"){
-                // console.log(loadMesh);
-                  let root=loadMesh.parent;
-                  loadMesh.id= loadMesh.name+"_"+increment;
-                  loadMesh.name= loadMesh.name+"_"+increment;
-                  increment++;
-                  loadMesh.parent=this.meshRoom;
-                  that.camera.position.y=35;
-                  that.camera.setTarget(loadMesh.position);
-                  move(loadMesh);
+        this.meshSpecial.map(Special=>{
+          if(type===Special.name){
+            let mesh_clone_add=Special.clone()
+            mesh_clone_add.position.x=0;
+            mesh_clone_add.position.z=0;
+            that.camera.setTarget(mesh_clone_add.position);
+            clickMesh(mesh_clone_add);  
+            move(mesh_clone_add);
+            that.meshSpecial.map(diffMesh=>{
+              if(mesh_clone_add.intersectsMesh(diffMesh,true)) {
+                let meshMaterial = new BABYLON.StandardMaterial("myMaterial", that.scene);
+                 meshMaterial.alpha=0.7;
+                 meshMaterial.diffuseColor=new BABYLON.Color3(1,0,0)
+                 mesh_clone_add.material = meshMaterial;
+                 move(mesh_clone_add);
+              }
+            })  
+            that.canMesh.push(mesh_clone_add)
+          }
+        })   
+        // await this.assetsManager.load();
+        // this.assetsManager.useDefaultLoadingScreen = false;
+        // meshTask.onSuccess = (task) => {
+        //   task.loadedMeshes.map(loadMesh=>{
+        //     if(loadMesh.parent!==null){
+        //       console.log(loadMesh.parent.name)
+        //       if(loadMesh.parent.name==="__root__"){
+        //         // console.log(loadMesh);
+        //           let root=loadMesh.parent;
+        //           loadMesh.id= loadMesh.name+"_"+increment;
+        //           loadMesh.name= loadMesh.name+"_"+increment;
+        //           increment++;
                   
-                  that.canMesh.push(loadMesh)
-                  clickMesh(loadMesh);
-                  root.dispose();
-              };
-            }
-          })
-         // that.scene.debugLayer.show();
-          // meshes[0].position.y=0;
-          // meshes[0].position.z=0;
-          // meshes[0].name=meshes[0].name+"_"+increment;
-          // meshes.map(mesh=>{
-          //     that.camera.lockedTarget = mesh;
-          //     clickMesh(mesh)
-          //     this.canMesh.push(mesh);
-          // })
-        }
-        meshTask.onError = await function (task, message, exception) {
-          console.log(message, exception);
-        }    
+        //           loadMesh.parent=this.meshRoom;
+        //           loadMesh.rotation.z=3.14;
+        //           loadMesh.position.y=50;
+                  
+        //           console.log(loadMesh.rotation);
+        //           that.camera.position.y=35;
+        //           that.camera.setTarget(loadMesh.position);
+        //           move(loadMesh);
+                  
+        //           that.canMesh.push(loadMesh)
+        //           clickMesh(loadMesh);
+        //           root.dispose();
+        //       };
+        //     }
+        //   })
+    
+        // }
     }
   }
   addGlass = () =>{
