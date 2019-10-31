@@ -54,10 +54,10 @@ class BabylonScene extends Component  {
   };
   addScene = async () =>{
     let {type} = this.state;
-    let assetsManager = new BABYLON.AssetsManager(this.scene);
-    let meshTask = assetsManager.addMeshTask(type, "", "Typeroom/", "scene.glb");
-    assetsManager.load();
-    assetsManager.useDefaultLoadingScreen = false;
+    this.assetsManager = new BABYLON.AssetsManager(this.scene);
+    let meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "PhongNgu2.glb");
+    this.assetsManager.load();
+    this.assetsManager.useDefaultLoadingScreen = false;
     let i;
     let models=[];
     meshTask.onSuccess = (task) => {
@@ -197,7 +197,6 @@ class BabylonScene extends Component  {
       mesh.actionManager = new BABYLON.ActionManager(that.scene);
       activeClick=false;
       let activepanel= mesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickUpTrigger, function () {
-          console.log(mesh.name);
           activeClick=!activeClick;
           if(click_old_mesh!==mesh||!click_old_mesh) {
             activeClick=true;
@@ -208,8 +207,14 @@ class BabylonScene extends Component  {
       }))
     }
     this.importMesh.map((mesh)=>{
-      mesh.checkCollisions=true;
-        if(mesh.name!=="trannha" && mesh.name!=="Plane" && mesh.parent!==null){
+        mesh.checkCollisions=true;
+        if(mesh.name==="wall") this.meshWall=mesh;
+        if(mesh.name!=="wall" && mesh.name!=="roof" && mesh.name!=="nen" && mesh.name!=="glassWindow" && mesh.parent!==null){
+          if(mesh.name==="__root__"){
+            mesh.id="room";
+            mesh.name="room";
+            this.meshRoom=mesh;
+          }
           if(mesh.parent.id==="__root__"){
             clickMesh(mesh)
             this.canMesh[index]=mesh;
@@ -223,11 +228,12 @@ class BabylonScene extends Component  {
     this.GeneralPanelButton.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.GeneralPanelButton.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
     this.UIRoot.addControl(this.GeneralPanelButton);
-    let active=false;
-    // this.GeneralPanelButton.getChildByName('but1').onPointerUpObservable.add(function(evt) { 
-    //     active=!active;
-    //    // ActiveGeneralPanel(active);
-    // });
+    let click_general_active=false;
+    this.GeneralPanelButton.getChildByName('but1').onPointerUpObservable.add(function(evt) { 
+      click_general_active=!click_general_active;
+        ActiveGeneralPanel(click_general_active);
+        
+    });
     let CreateNormalPanel = (mesh)=>{
       that.scene.activeCamera.attachControl(that.canvas, false );           
       //Left Inner Pane
@@ -269,7 +275,7 @@ class BabylonScene extends Component  {
       //Move Button
      let Movecontainer = createContainerButton(.99,"80px","Move");
      Movecontainer.getChildByName('but1').onPointerUpObservable.add(function() {   
-          //move(mesh);
+          move(mesh);
       });
    //  createContainerButton(container,0,-150);
      that.InformationPanel.addControl(Movecontainer);
@@ -343,7 +349,6 @@ class BabylonScene extends Component  {
     }
     let old_active_mesh;
     let ActiveNormalPanel=(mesh,active)=>{
-        console.log(active);
         if(active){
             //console.log(that.NormalPanel)
             if(that.SavePanel)that.UIRoot.removeControl(that.SavePanel);
@@ -379,6 +384,242 @@ class BabylonScene extends Component  {
       mesh.dispose();
       that.camera.lockedTarget= null
       if(type==2)ActiveNormalPanel(mesh,false);
+    }
+    let activeCancelandSave=(mesh,active)=>{
+      if(active){
+          if(!that.SavePanel)
+              that.UIRoot.removeControl(that.GeneralPanelButton);
+              let SavePanel=createInnerPane('save_panel',.16,.16);
+              let saveButton = createButton("120px","40px","save");
+              let cancelButton = createButton("120px","40px","cancel");
+              saveButton.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+              saveButton.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+              cancelButton.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+              cancelButton.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+              cancelButton.top="40px";
+              saveButton.onPointerUpObservable.add(function() { 
+                  move(mesh,false);
+              });
+              cancelButton.onPointerUpObservable.add(function(e) { 
+                  move(mesh,false);              
+              });
+              SavePanel.addControl(saveButton);
+              SavePanel.addControl(cancelButton);
+              SavePanel.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+              SavePanel.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+              that.UIRoot.addControl(SavePanel);
+              return SavePanel;
+      }
+      else {
+         if(that.SavePanel)that.UIRoot.removeControl(that.SavePanel)
+      }
+    }
+    let coilision=(mesh,meshMaterial,PushOut=false)=>{
+      let diffmesh=that.canMesh;
+      console.log(that.meshWall);
+     diffmesh.push(that.meshWall);
+      
+      let mesh_clone=that.scene.getMeshByName(mesh.name + '_clone');  
+      let inter=false;                                       
+      diffmesh.map(diff =>{
+          if(mesh!==diff && mesh_clone!==diff){
+              if(mesh.intersectsMesh(diff,true)) {
+                  inter=true;
+                  if(PushOut){
+                      mesh.position=mesh_clone.position
+                  }
+                  else meshMaterial.diffuseColor=new BABYLON.Color3(1,0,0)
+              }
+              if(inter===false){
+                  if(PushOut){
+                      mesh.position.x=Math.round(mesh.position.x)
+                      mesh.position.z=Math.round(mesh.position.z)
+                  }
+                  meshMaterial.diffuseColor=new BABYLON.Color3(0,0,1);
+              } 
+          }
+      })
+      mesh.material = meshMaterial;
+    }
+    let LocationMesh;
+    let move_mesh_name;
+    let move=(mesh,active=true)=>{
+        if(active){
+            that.gizmoManager = new BABYLON.GizmoManager(that.scene);
+            that.camera.lockedTarget= null
+            move_mesh_name=mesh.name;
+            that.UIRoot.removeControl(that.GeneralPanelButton)
+            if(that.AddPanel)that.UIRoot.removeControl(that.AddPanel);
+            if(that.NormalPanel)ActiveNormalPanel(mesh,false);
+            that.SavePanel = activeCancelandSave(mesh,true);
+            that.scene.meshes.map(value =>{
+                value.isPickable=false
+            }); //Off event all picker
+            that.gizmoManager.positionGizmoEnabled = true;
+            that.gizmoManager.attachToMesh(mesh);
+            that.gizmoManager.gizmos.positionGizmo.updateGizmoPositionToMatchAttachedMesh=false;
+            that.gizmoManager.snapDistance = .001;
+            //Show x, y ,z
+            LocationMesh = createInput("X :"+mesh.position.x+" Z :"+mesh.position.z,0.3,.05);
+            LocationMesh.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            LocationMesh.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+            that.UIRoot.addControl(LocationMesh) 
+
+            let meshMaterial = new BABYLON.StandardMaterial("myMaterial", that.scene);
+                meshMaterial.alpha=0.7;
+            
+            if(mesh.name!=="closet"){
+              that.gizmoManager.gizmos.positionGizmo.zGizmo.dispose()
+              that.gizmoManager.gizmos.positionGizmo.yGizmo.dragBehavior.onDragObservable.add((e)=>{
+                if(mesh.name===move_mesh_name){              
+                  coilision(mesh,meshMaterial)
+                }
+              })
+            }
+            else {
+              that.gizmoManager.gizmos.positionGizmo.yGizmo.dispose()
+              that.gizmoManager.gizmos.positionGizmo.zGizmo.dragBehavior.onDragObservable.add((e)=>{
+                if(mesh.name===move_mesh_name){
+                  coilision(mesh,meshMaterial)
+                }
+              })
+            }
+            that.gizmoManager.gizmos.positionGizmo.onDragStartObservable.add(()=>{
+                mesh.clone(mesh.name + '_clone');
+            })          
+            that.gizmoManager.gizmos.positionGizmo.xGizmo.dragBehavior.onDragObservable.add(()=>{
+              if(mesh.name===move_mesh_name){          
+                coilision(mesh,meshMaterial)
+              }
+            })
+            that.gizmoManager.gizmos.positionGizmo.onDragEndObservable.add(()=>{ 
+                let mesh_clone=that.scene.getMeshByName(mesh.name + '_clone');
+                coilision(mesh,meshMaterial,true);
+                LocationMesh.text="X :"+mesh.position.x+" Z :"+mesh.position.z;
+                if(mesh_clone.material)mesh.material=mesh_clone.material
+                if(mesh_clone.isEnabled())deleteMesh(mesh_clone);              
+            })
+        }
+        else{  
+          that.camera.lockedTarget= mesh
+            if(LocationMesh)that.UIRoot.removeControl(LocationMesh);
+            if(that.SavePanel)that.UIRoot.removeControl(that.SavePanel);
+            that.SavePanel=null
+            ActiveNormalPanel(mesh,true);
+            activeCancelandSave(mesh,false);
+            that.canMesh.map(mesh =>(mesh.isPickable=true));
+            that.gizmoManager.positionGizmoEnabled = false;
+            that.gizmoManager=null;
+        }
+    }
+    let ActiveGeneralPanel=(active=true)=>{
+      if(!that.GeneralPanel) that.GeneralPanel= CreateGeneralPanel();
+       if(active) {
+        that.scene.meshes.map(value =>{
+          value.isPickable=false
+        });
+        that.UIRoot.addControl(that.GeneralPanel)} 
+        else {
+        returnNormal();
+       }
+    }
+    function CreateGeneralPanel(){
+      that.camera.attachControl(that.canvas, false);           
+      //Left Inner Pane
+      let GeneralPanel = createInnerPane('gerenal_pane',.3,.10);
+      GeneralPanel.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+      GeneralPanel.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+      //Add Button
+      let Addcontainer = createContainerButton(0.50,0.4,"Add");
+      Addcontainer.getChildByName('but1').onPointerUpObservable.add(function() {
+        createAddPanel(true);
+        that.UIRoot.removeControl(GeneralPanel);
+        insertButton(createContainerButton(0.7,0.10,"Camera"),"camera")
+        insertButton(createContainerButton(0.7,0.10,"Fire alram"),"fire_alarm")
+        insertButton(createContainerButton(0.7,0.10,"Light"),"light")
+      });
+      Addcontainer.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+      Addcontainer.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+      GeneralPanel.addControl(Addcontainer);
+     return GeneralPanel;
+    }
+    let countContainerAddPanel=1;
+    let maxContainerAddPanel=4;
+    let insertButton=(buttonContainer,name)=>{
+        buttonContainer.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        buttonContainer.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+        buttonContainer.getChildByName('but1').onPointerUpObservable.add(function() {
+            addMesh(name);
+        });
+        let top=String(80*countContainerAddPanel);
+        buttonContainer.top=top+"px";
+        countContainerAddPanel=countContainerAddPanel+1;   
+        that.AddPanel.addControl(buttonContainer);
+        if(countContainerAddPanel===maxContainerAddPanel) countContainerAddPanel=1;
+    }
+    let createAddPanel=(active)=>{
+        if(active){
+        that.AddPanel = createInnerPane('add_pane',.3,.8);
+        that.AddPanel.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        that.AddPanel.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+        that.UIRoot.addControl(that.AddPanel);
+        let ExitMesh= createButton(0.16,.06,"X");
+        ExitMesh.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        ExitMesh.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+        ExitMesh.onPointerUpObservable.add(function() { 
+            returnNormal();
+        });
+        that.AddPanel.addControl(ExitMesh);
+        }
+        else{
+            returnNormal();
+        }        
+    }
+    let increment=1;
+    let addMesh=async(type)=>{
+        let meshTask;
+        switch(type){
+          case 'camera':meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "camera1.glb");break;
+          case 'fire_alarm':meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "camera1.glb");break;
+          case 'light':meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "camera1.glb");break;
+          default : console.log("Khong ho tro");
+        }
+        await this.assetsManager.load();
+        this.assetsManager.useDefaultLoadingScreen = false;
+        meshTask.onSuccess = (task) => {
+          task.loadedMeshes.map(loadMesh=>{
+            if(loadMesh.parent!==null){
+              console.log(loadMesh.parent.name)
+              if(loadMesh.parent.name==="__root__"){
+                // console.log(loadMesh);
+                  let root=loadMesh.parent;
+                  loadMesh.id= loadMesh.name+"_"+increment;
+                  loadMesh.name= loadMesh.name+"_"+increment;
+                  increment++;
+                  loadMesh.parent=this.meshRoom;
+                  that.camera.position.y=35;
+                  that.camera.setTarget(loadMesh.position);
+                  move(loadMesh);
+                  
+                  that.canMesh.push(loadMesh)
+                  clickMesh(loadMesh);
+                  root.dispose();
+              };
+            }
+          })
+         // that.scene.debugLayer.show();
+          // meshes[0].position.y=0;
+          // meshes[0].position.z=0;
+          // meshes[0].name=meshes[0].name+"_"+increment;
+          // meshes.map(mesh=>{
+          //     that.camera.lockedTarget = mesh;
+          //     clickMesh(mesh)
+          //     this.canMesh.push(mesh);
+          // })
+        }
+        meshTask.onError = await function (task, message, exception) {
+          console.log(message, exception);
+        }    
     }
   }
   addGlass = () =>{
