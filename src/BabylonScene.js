@@ -7,7 +7,8 @@ import * as BABYLON from "babylonjs";
 import 'babylonjs-loaders';
 import 'babylonjs-serializers';
 import * as BABYLONGUI from 'babylonjs-gui'
-
+import { isNumber } from "util";
+import { NullEngine } from "babylonjs";
 
 /**
  * Example temnplate of using Babylon JS with React
@@ -20,6 +21,7 @@ class BabylonScene extends Component  {
   
   async componentDidMount () {
     // start ENGINE
+    
     this.engine = new BABYLON.Engine(this.canvas, true);
 
     //Create this.scene
@@ -55,12 +57,13 @@ class BabylonScene extends Component  {
   addScene = async () =>{
     let {type} = this.state;
     this.assetsManager = new BABYLON.AssetsManager(this.scene);
-    let meshTask = this.assetsManager.addMeshTask(type, "", "Typeroom/", "PhongNgu5.glb");
+    let meshTask = this.assetsManager.addMeshTask("", "", "Typeroom/", "PhongNgu6.glb");
     this.assetsManager.load();
     this.assetsManager.useDefaultLoadingScreen = false;
     let i;
     let models=[];
     meshTask.onSuccess = (task) => {
+      console.log(task)
       for (i = 0; i < task.loadedMeshes.length; i++) {     
         models[i] = task.loadedMeshes[i];//add them to our models-object, we will call them later via their name
       }
@@ -79,7 +82,7 @@ class BabylonScene extends Component  {
     this.addCamera(2);
 
     //--Meshes---
-    this.addModels();
+   // this.addModels();
 
     //--Ground---
     this.addGround();
@@ -92,7 +95,7 @@ class BabylonScene extends Component  {
       if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
           e.preventDefault();
       }
-  }, false);
+    }, false);
     
     // Render Loop
     this.engine.runRenderLoop(() => {
@@ -114,10 +117,9 @@ class BabylonScene extends Component  {
    * type : 2 = ArcRotateCamera
    */
   addCamera = (type=1) => {
-    let camera;
     if(type=="1"){
       // ---------------ArcRotateCamera or Orbit Control----------
-       camera = new BABYLON.ArcRotateCamera(
+       this.camera = new BABYLON.ArcRotateCamera(
         "Camera",
         Math.PI / 2,
         Math.PI / 4,
@@ -125,26 +127,25 @@ class BabylonScene extends Component  {
         BABYLON.Vector3.Zero(),
         this.scene
       );
-      camera.inertia = 0;
-      camera.angularSensibilityX = 250;
-      camera.angularSensibilityY = 250;
+      this.camera.inertia = 0;
+      this.camera.angularSensibilityX = 250;
+      this.camera.angularSensibilityY = 250;
 
       // This attaches the camera to the canvas
-      camera.attachControl(this.canvas, true);
-      camera.setPosition(new BABYLON.Vector3(5, 5, 5));
+      this.camera.attachControl(this.canvas, true);
+      this.camera.setPosition(new BABYLON.Vector3(5, 5, 5));
     }
     else{
-     camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0, 1, -20), this.scene);
-     camera.rotation.y=3.14;
-      camera.position =new BABYLON.Vector3(-9,18,-1);
-      camera.attachControl(this.canvas, true);    
-      camera.speed=1.5;
-      camera.applyGravity = true;
-       camera.ellipsoid= new BABYLON.Vector3(8,18,8)
+      this.camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0, 1, -20), this.scene);
+      this.camera.rotation.y=3.14;
+      this.camera.position =new BABYLON.Vector3(-9,18,-1);
+      this.camera.attachControl(this.canvas, true);    
+      this.camera.speed=1.5;
+      this.camera.applyGravity = true;
+      this.camera.ellipsoid= new BABYLON.Vector3(8,18,8)
       // camera.ellipsoidOffset = new BABYLON.Vector3(15, 13, 15);
-      camera.checkCollisions=true;
+      this.camera.checkCollisions=true;
     }
-    this.camera=camera;
   };
 
   /**
@@ -208,9 +209,19 @@ class BabylonScene extends Component  {
           click_old_mesh=mesh;
       }))
     }
+    let bumpMaterial = new BABYLON.StandardMaterial("myMaterial", this.scene);
+    bumpMaterial.bumpTexture = new BABYLON.Texture("bump.png", this.scene);
+    bumpMaterial.invertNormalMapX = true;
+    bumpMaterial.invertNormalMapY = true;
     this.importMesh.map((mesh)=>{
 
         mesh.checkCollisions=true;
+        if(mesh.name==="roof"){
+          mesh.material=bumpMaterial;
+        }
+        if(mesh.name==="closet"){
+          that.Closet=mesh;
+        }
         if(mesh.name.search("wall")===0){
           this.wallMesh.push(mesh)
         }
@@ -239,7 +250,7 @@ class BabylonScene extends Component  {
     let click_general_active=false;
     this.GeneralPanelButton.getChildByName('but1').onPointerUpObservable.add(function(evt) { 
       click_general_active=!click_general_active;
-        ActiveGeneralPanel(click_general_active);
+       ActiveGeneralPanel(click_general_active);
         
     });
     let CreateNormalPanel = (mesh)=>{
@@ -282,11 +293,27 @@ class BabylonScene extends Component  {
       that.InformationPanel.addControl(Deletecontainer);
       //Move Button
      let Movecontainer = createContainerButton(.99,"80px","Move");
-     Movecontainer.getChildByName('but1').onPointerUpObservable.add(function() {   
+     Movecontainer.getChildByName('but1').onPointerUpObservable.add(function() {
+          that.cposition=[];
+          that.cposition.push(mesh.position.x);
+          that.cposition.push(mesh.position.y);
+          that.cposition.push(mesh.position.z);
           move(mesh);
       });
+      that.InformationPanel.addControl(Movecontainer);
+      let CameraRecordContontainer = createContainerButton(.99,"80px","Record");
+      CameraRecordContontainer.getChildByName('but1').onPointerUpObservable.add(function() {
+        addRecord(mesh);
+      });
+      let OpenSceneContontainer = createContainerButton(.99,"80px","Open Scene");
+      OpenSceneContontainer.getChildByName('but1').onPointerUpObservable.add(function() {
+        openScene(mesh);
+      });
+      if(mesh.id.search("camera")===0){
+        that.InformationPanel.addControl(CameraRecordContontainer);
+        that.InformationPanel.addControl(OpenSceneContontainer);
+      }
    //  createContainerButton(container,0,-150);
-     that.InformationPanel.addControl(Movecontainer);
      that.UIRoot.addControl(that.NormalPanel); 
     }
     function createContainerButton(mywidth,myheight,nameButton){
@@ -309,8 +336,8 @@ class BabylonScene extends Component  {
       rect1.name=name;
       return rect1;
     }
-    function createButton ( mywidth, myheight ,caption) {
-      let button1 = BABYLONGUI.Button.CreateSimpleButton("but1", caption);
+    function createButton ( mywidth, myheight ,caption,name="but1") {
+      let button1 = BABYLONGUI.Button.CreateSimpleButton(name, caption);
       button1.width = mywidth;
       button1.height = myheight;
       button1.thickness = 0;
@@ -359,6 +386,7 @@ class BabylonScene extends Component  {
     that.meshCurrentPosition=null;
     let ActiveNormalPanel=(mesh,active)=>{
         if(active){
+            mesh.id=mesh.name;
             if(that.SavePanel)that.UIRoot.removeControl(that.SavePanel);
             if(old_active_mesh!==mesh && that.NormalPanel){
               that.UIRoot.removeControl(that.NormalPanel);
@@ -401,8 +429,8 @@ class BabylonScene extends Component  {
           if(!that.SavePanel)
               that.UIRoot.removeControl(that.GeneralPanelButton);
               let SavePanel=createInnerPane('save_panel',.16,.16);
-              let saveButton = createButton("120px","40px","save");
-              let cancelButton = createButton("120px","40px","cancel");
+              let saveButton = createButton("120px","40px","save","saveButton");
+              let cancelButton = createButton("120px","40px","cancel","cancelButton");
               saveButton.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
               saveButton.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
               cancelButton.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -418,8 +446,13 @@ class BabylonScene extends Component  {
                 })
                 if(coilision) move(mesh,false);
               });
-              cancelButton.onPointerUpObservable.add(function(e) { 
-                 move(mesh,false,true);           
+              cancelButton.onPointerUpObservable.add(function(e) {
+                
+                  mesh.position.x=that.cposition[0];
+                  mesh.position.y=that.cposition[1];
+                  mesh.position.z=that.cposition[2];
+                
+                 move(mesh,false);           
               });
               SavePanel.addControl(saveButton);
               SavePanel.addControl(cancelButton);
@@ -473,6 +506,10 @@ class BabylonScene extends Component  {
             if(that.AddPanel)that.UIRoot.removeControl(that.AddPanel);
             if(that.NormalPanel)ActiveNormalPanel(mesh,false);
             that.SavePanel = activeCancelandSave(mesh,true);
+            if(cancel)
+              that.SavePanel.getChildByName('cancelButton').isVisible=false;
+              
+            
             that.scene.meshes.map(value =>{
                 value.isPickable=false
             }); //Off event all picker
@@ -491,8 +528,8 @@ class BabylonScene extends Component  {
                 meshMaterial.alpha=0.7;
             
             if(mesh.name!=="closet"){
-              that.gizmoManager.gizmos.positionGizmo.yGizmo.dispose()
-              that.gizmoManager.gizmos.positionGizmo.zGizmo.dragBehavior.onDragObservable.add((e)=>{
+              that.gizmoManager.gizmos.positionGizmo.zGizmo.dispose()
+              that.gizmoManager.gizmos.positionGizmo.yGizmo.dragBehavior.onDragObservable.add((e)=>{
                
                 if(mesh.name===move_mesh_name){              
                   coilision(mesh,meshMaterial)
@@ -500,15 +537,15 @@ class BabylonScene extends Component  {
               })
             }
             else {
-              that.gizmoManager.gizmos.positionGizmo.zGizmo.dispose()
-              that.gizmoManager.gizmos.positionGizmo.yGizmo.dragBehavior.onDragObservable.add((e)=>{
+              that.gizmoManager.gizmos.positionGizmo.yGizmo.dispose()
+              that.gizmoManager.gizmos.positionGizmo.zGizmo.dragBehavior.onDragObservable.add((e)=>{
                 if(mesh.name===move_mesh_name){
                   coilision(mesh,meshMaterial)
                 }
               })
             }
             that.gizmoManager.gizmos.positionGizmo.onDragStartObservable.add(()=>{
-                mesh.clone(mesh.name + '_clone');
+              mesh.clone(mesh.name + '_clone');
             })          
             that.gizmoManager.gizmos.positionGizmo.xGizmo.dragBehavior.onDragObservable.add(()=>{
               if(mesh.name===move_mesh_name){          
@@ -521,12 +558,11 @@ class BabylonScene extends Component  {
                 coilision(mesh,meshMaterial,true);
                 LocationMesh.text="X :"+mesh.position.x+" Z :"+mesh.position.z;
                 if(mesh_clone.material)mesh.material=originMaterial;
+                if(cancel)mesh.material=that.currentmat; 
                 if(mesh_clone.isEnabled())deleteMesh(mesh_clone);              
             })
         }
-        else{ 
-          console.log(that.duy)
-          if(cancel)mesh.position=that.duy; 
+        else{
             that.camera.lockedTarget= mesh
             if(LocationMesh)that.UIRoot.removeControl(LocationMesh);
             if(that.SavePanel)that.UIRoot.removeControl(that.SavePanel);
@@ -606,21 +642,21 @@ class BabylonScene extends Component  {
     let addMesh=async(type)=>{
         this.meshSpecial.map(Special=>{
           if(type===Special.name){
-            let mesh_clone_add=Special.clone()
+            let mesh_clone_add=Special.clone(Special.name+"_"+increment)
             mesh_clone_add.position.x=0;
             mesh_clone_add.position.z=0;
             that.camera.setTarget(mesh_clone_add.position);
-            clickMesh(mesh_clone_add);  
-            move(mesh_clone_add);
+            clickMesh(mesh_clone_add);
+            that.currentmat=mesh_clone_add.material;
             that.meshSpecial.map(diffMesh=>{
               if(mesh_clone_add.intersectsMesh(diffMesh,true)) {
                 let meshMaterial = new BABYLON.StandardMaterial("myMaterial", that.scene);
                  meshMaterial.alpha=0.7;
                  meshMaterial.diffuseColor=new BABYLON.Color3(1,0,0)
-                 mesh_clone_add.material = meshMaterial;
-                 move(mesh_clone_add);
+                 mesh_clone_add.material = meshMaterial;  
               }
-            })  
+            })
+            move(mesh_clone_add,true,true);
             that.canMesh.push(mesh_clone_add)
           }
         })   
@@ -655,6 +691,199 @@ class BabylonScene extends Component  {
     
         // }
     }
+    let addRecord=(mesh,active=true)=>{
+        if(active){
+          let followCamera=  new BABYLON.FreeCamera(
+            "FollowCamera",
+            BABYLON.Vector3.Zero(),
+            that.scene
+          );
+          
+          //Position
+          followCamera.position.x= -Math.round(mesh.position.x)
+          followCamera.position.y= Math.round(mesh.position.y-7)
+          followCamera.position.z= Math.round(mesh.position.z)
+          //Rotation
+
+          followCamera.rotation.x= 0.65
+          followCamera.rotation.y= -4
+          followCamera.rotation.z= 0
+
+        //  console.log(followCamera.position + "vs" + followCamera.rotation);
+         // console.log(followCamera.position + "vs" + followCamera.rotation);
+          that.scene.activeCamera= followCamera;
+          that.scene.activeCamera.attachControl(that.canvas, false ); 
+          that.UIRoot.removeControl(that.GeneralPanelButton)
+          if(that.AddPanel)that.UIRoot.removeControl(that.AddPanel);
+          if(that.NormalPanel)ActiveNormalPanel(mesh,false);
+          let ExitMesh= createButton(0.22,.06,"X");
+          ExitMesh.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+          ExitMesh.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+          ExitMesh.onPointerUpObservable.add(function() { 
+            that.scene.activeCamera= that.camera;
+            that.UIRoot.removeControl(ExitMesh);
+            that.UIRoot.removeControl(TestMesh);
+            that.scene.stopAnimation(that.scene.getMeshByName('box'));
+            that.scene.getMeshByName('box').dispose();
+            returnNormal();
+          });
+          let TestMesh= createButton(0.22,.06,"Test Mesh");
+          TestMesh.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+          TestMesh.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+          TestMesh.top="40px"
+          let num_active=1
+          TestMesh.onPointerUpObservable.add(function() { 
+           //Material
+           if(num_active===1){
+              let mat = new BABYLON.StandardMaterial("mat1", that.scene);
+              mat.alpha = 1.0;
+              mat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 1.0);
+            // Shape to follow
+              let box = BABYLON.MeshBuilder.CreateBox("box",{width: 6,height : 6}, that.scene);
+              box.position = new BABYLON.Vector3.Zero();
+              box.material = mat;
+              followCamera.lockedTarget = box;
+              
+              let animationBox = new BABYLON.Animation("myAnimation", "position.x", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation._ANIMATIONLOOPMODE_RELATIVE);
+              let keys = [];
+              //At the animation key 0, the value of scaling is "1"
+              keys.push({
+                  frame: 0,
+                  value: mesh.position.x+40
+              });
+
+              //At the animation key 20, the value of scaling is "0.2"
+              keys.push({
+                  frame: 10,
+                  value: mesh.position.x-40
+              });
+
+              //At the animation key 100, the value of scaling is "1"
+              keys.push({
+                  frame: 20,
+                  value: mesh.position.x+40
+              });
+              animationBox.setKeys(keys);
+              box.animations.push(animationBox);
+              that.scene.beginAnimation(box, 0, 20, true);
+           }
+           num_active+=1;
+          });
+          that.UIRoot.addControl(ExitMesh);
+          that.UIRoot.addControl(TestMesh);
+        }
+    }
+    let openScene=(mesh,active=true)=>{
+      //Create this.scene
+      if(that.canvasCam.hidden)that.canvasCam.hidden=false;
+      that.engine1 = new BABYLON.Engine(that.canvasCam, true);
+
+      //Create this.scene
+      that.subScene = new BABYLON.Scene(that.engine1);
+
+      let followCamera=  new BABYLON.FreeCamera(
+        "FollowCamera",
+        BABYLON.Vector3.Zero(),
+        that.subScene
+      );
+      //Position
+      followCamera.position.x= -Math.round(mesh.position.x)
+      followCamera.position.y= Math.round(mesh.position.y-7)
+      followCamera.position.z= Math.round(mesh.position.z)
+      //Rotation
+
+      followCamera.rotation.x= 0.65
+      followCamera.rotation.y= -4
+      followCamera.rotation.z= 0
+      
+      
+      that.subScene.activeCamera= followCamera;
+      
+      //Light
+      let light = new BABYLON.HemisphericLight(
+        "light1",
+        new BABYLON.Vector3(0, 10, 0),
+        that.subScene
+      );
+
+      that.assetsManager1 = new BABYLON.AssetsManager(that.subScene);
+      let meshTask1 = that.assetsManager1.addMeshTask("", "", "Typeroom/", "PhongNgu6.glb");
+      that.assetsManager1.load();
+      that.assetsManager1.useDefaultLoadingScreen = false;
+      let i;
+      meshTask1.onSuccess = (task) => {
+        console.log("Thanh Cong");
+        let light = new BABYLON.HemisphericLight(
+          "light1",
+          new BABYLON.Vector3(0, 10, 0),
+          that.subScene
+        );
+      }
+      meshTask1.onError = function (task, message, exception) {
+        console.log(message, exception);
+      }
+      
+      that.UIRoot.removeControl(that.GeneralPanelButton)
+      if(that.AddPanel)that.UIRoot.removeControl(that.AddPanel);
+      if(that.NormalPanel)ActiveNormalPanel(mesh,false);
+      let ExitMesh= createButton(0.22,.06,"X");
+      ExitMesh.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+      ExitMesh.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+      ExitMesh.onPointerUpObservable.add(function() { 
+        that.scene.activeCamera= that.camera;
+        that.UIRoot.removeControl(ExitMesh);
+        that.UIRoot.removeControl(TestMesh);
+        that.canvasCam.hidden = true;
+        returnNormal();
+      });
+      that.UIRoot.addControl(ExitMesh);
+      let TestMesh= createButton(0.22,.06,"Test Mesh");
+      TestMesh.horizontalAlignment = BABYLONGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+      TestMesh.verticalAlignment = BABYLONGUI.Control.VERTICAL_ALIGNMENT_TOP;
+      TestMesh.top="40px"
+      let num_active=1
+      TestMesh.onPointerUpObservable.add(function() { 
+       //Material
+       if(num_active===1){
+          let mat = new BABYLON.StandardMaterial("mat1", that.subScene);
+          mat.alpha = 1.0;
+          mat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 1.0);
+        // Shape to follow
+          let box = BABYLON.MeshBuilder.CreateBox("box",{width: 6,height : 6}, that.subScene);
+          box.position = new BABYLON.Vector3.Zero();
+          box.material = mat;
+          followCamera.lockedTarget = box;
+          
+          let animationBox = new BABYLON.Animation("myAnimation", "position.x", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation._ANIMATIONLOOPMODE_RELATIVE);
+          let keys = [];
+          //At the animation key 0, the value of scaling is "1"
+          keys.push({
+              frame: 0,
+              value: mesh.position.x+40
+          });
+
+          //At the animation key 20, the value of scaling is "0.2"
+          keys.push({
+              frame: 10,
+              value: mesh.position.x-40
+          });
+
+          //At the animation key 100, the value of scaling is "1"
+          keys.push({
+              frame: 20,
+              value: mesh.position.x+40
+          });
+          animationBox.setKeys(keys);
+          box.animations.push(animationBox);
+          that.subScene.beginAnimation(box, 0, 20, true);
+       }
+       num_active+=1;
+      });
+      that.UIRoot.addControl(TestMesh);
+      this.engine1.runRenderLoop(() => {
+        this.subScene.render();
+      });
+    }
   }
   addGlass = () =>{
     // console.log("Duy ne");
@@ -676,11 +905,19 @@ class BabylonScene extends Component  {
       <>
       <canvas
         style={{ width: window.innerWidth*0.70, height: window.innerHeight*0.9,marginTop: -18+"px" }}
-        ref={canvas => {
-          this.canvas = canvas;
+        ref={canvasDuy => {
+          this.canvas = canvasDuy;
           
         }}
+        className="duy"
       />
+        <canvas
+        style={{ width: window.innerWidth*0.135, height: window.innerHeight*0.35,marginTop: -18+"px",float:"right" }}
+        ref={canvasCam => {
+          this.canvasCam = canvasCam;
+        }}
+        className="cam"
+        />
       <input type="submit" id="btn-submit" value="Submit" onClick={this.save}></input>
       </>
     );
